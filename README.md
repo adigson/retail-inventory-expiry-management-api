@@ -63,6 +63,8 @@ Recommended error shape:
 
 Do not commit `.env` or generated files. Keep route handlers, validation, data access, and error handling in their assigned modules.
 
+The repository includes a GitHub Actions test check. Enable branch protection for `main` and require the CI check plus at least one approving review before merging pull requests.
+
 ## Ownership
 
 See `CONTRIBUTING.md` for the Phase 1 task map and pull request checklist.

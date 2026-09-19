@@ -25,6 +25,18 @@ Use a branch named `feature/<short-task-name>`. Keep commits focused and explain
 
 The maintainer merges only after the route contract, validation behavior, status codes, and error shape have been reviewed.
 
+## Definition of done
+
+Before requesting review, confirm that:
+
+- The endpoint or middleware is implemented in the assigned module.
+- Successful and invalid requests have automated tests.
+- Missing resources return `404` with the agreed error shape.
+- Validation failures return `400` with useful details.
+- Duplicate SKUs return `409`.
+- The implementation does not break existing tests.
+- The GitHub Actions check passes.
+
 ## Shared decisions
 
 - IDs are server-generated strings.
