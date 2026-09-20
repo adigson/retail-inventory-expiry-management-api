@@ -1,13 +1,19 @@
-## What changed?
+### Description
 
-## How was it tested?
+Please include a summary of the changes and which issue is fixed. Include relevant motivation and context.
 
-- [ ] `npm test`
-- [ ] Manual request tested
+### Type of Change
 
-## Contract checklist
+* [ ] Bug fix (non-breaking change which fixes an issue)
+* [ ] New feature (non-breaking change which adds functionality)
+* [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+* [ ] Architecture / Refactoring
 
-- [ ] Status codes are documented and correct
-- [ ] Validation and error responses are covered
-- [ ] No `.env` or generated files included
-- [ ] README or Postman examples updated when needed
+### Quality Checklist
+
+* [ ] My code follows the style guidelines of this project
+* [ ] I have performed a self-review of my own code
+* [ ] I have commented my code, particularly in hard-to-understand areas
+* [ ] My changes generate no new warnings
+* [ ] I have added tests that prove my fix is effective or that my feature works
+* [ ] New and existing unit tests pass locally with my changes
