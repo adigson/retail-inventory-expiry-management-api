@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const products = require('../data/productStore');
 
-router.post('/products', (req, res) => {
+router.post('/', (req, res) => {
   const {
     name,
     sku,
