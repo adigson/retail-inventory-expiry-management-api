@@ -12,9 +12,6 @@ test('GET /health returns the service status', async () => {
     service: 'retail-inventory-expiry-management-api'
   });
 });
-test('GET /health returns the service status', async () => {
-  // ...
-});
 
 test('GET /unknown-route returns 404', async () => {
   const response = await request(app).get('/unknown-route');
