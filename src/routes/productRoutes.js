@@ -26,28 +26,53 @@ router.post('/', (req, res) => {
     });
   }
 
-  // Validate price and quantity
-  if (
-    typeof price !== 'number' ||
-    price < 0 ||
-    typeof quantity !== 'number' ||
-    quantity < 0
-  ) {
+  // Validate SKU safely
+  if (typeof sku !== 'string' || sku.trim() === '') {
     return res.status(400).json({
-      error: 'Price and quantity must be non-negative numbers'
+      error: 'SKU must be a valid string'
     });
   }
 
-  // Validate expiry date format
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)) {
+  // Validate price and quantity
+  if (
+    typeof price !== 'number' ||
+    !Number.isFinite(price) ||
+    price < 0 ||
+    typeof quantity !== 'number' ||
+    !Number.isFinite(quantity) ||
+    quantity < 0 ||
+    !Number.isInteger(quantity)
+  ) {
+    return res.status(400).json({
+      error: 'Price must be a non-negative number and quantity must be a non-negative integer'
+    });
+  }
+
+  // Validate expiry date safely
+  if (typeof expiryDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(expiryDate)) {
     return res.status(400).json({
       error: 'expiryDate must be in YYYY-MM-DD format'
     });
   }
 
-  // Check for duplicate SKU
+  const [year, month, day] = expiryDate.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return res.status(400).json({
+      error: 'expiryDate must be a valid calendar date'
+    });
+  }
+
+  // Check for duplicate SKU (case-insensitive)
   const duplicateSku = products.some(
-    product => product.sku.toLowerCase() === sku.toLowerCase()
+    product =>
+      typeof product.sku === 'string' &&
+      product.sku.toLowerCase() === sku.trim().toLowerCase()
   );
 
   if (duplicateSku) {
@@ -58,9 +83,9 @@ router.post('/', (req, res) => {
 
   // Create new product
   const newProduct = {
-    id: `p-${Date.now()}`,
+    id: `p-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     name,
-    sku,
+    sku: sku.trim(),
     category,
     price,
     quantity,
