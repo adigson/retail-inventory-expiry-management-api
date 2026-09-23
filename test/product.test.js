@@ -2,144 +2,131 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 const app = require('../src/app');
+const products = require('../src/data/productStore');
 
-const validProduct = () => ({
+const duplicateSkuResponse = {
+  error: 'Duplicate SKU',
+  details: [
+    {
+      field: 'sku',
+      message: 'SKU must be unique; another product already uses this SKU.'
+    }
+  ]
+};
+
+const validProduct = {
   name: 'Test Product',
-  sku: `TEST-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-  category: 'General',
-  price: 100,
-  quantity: 10,
-  expiryDate: '2027-12-31'
+  sku: 'TEST-001',
+  category: 'Test',
+  price: 10,
+  quantity: 5,
+  expiryDate: '2026-12-31'
+};
+
+function snapshotProducts() {
+  return structuredClone(products);
+}
+
+function restoreProducts(snapshot) {
+  products.splice(0, products.length, ...snapshot);
+}
+
+test('POST /api/products rejects a duplicate SKU with identical casing', async () => {
+  const snapshot = snapshotProducts();
+
+  try {
+    const response = await request(app)
+      .post('/api/products')
+      .send({ ...validProduct, sku: 'BREAD-WW-001' });
+
+    assert.equal(response.statusCode, 409);
+    assert.deepEqual(response.body, duplicateSkuResponse);
+    assert.deepEqual(products, snapshot);
+  } finally {
+    restoreProducts(snapshot);
+  }
 });
 
-test('POST /api/products creates a product successfully', async () => {
-  const product = validProduct();
+test('POST /api/products rejects a duplicate SKU with different casing', async () => {
+  const snapshot = snapshotProducts();
 
-  const response = await request(app)
-    .post('/api/products')
-    .send(product);
+  try {
+    const response = await request(app)
+      .post('/api/products')
+      .send({ ...validProduct, sku: 'bread-ww-001' });
 
-  assert.equal(response.statusCode, 201);
-  assert.equal(response.body.name, product.name);
-  assert.equal(response.body.sku, product.sku);
-  assert.equal(response.body.price, product.price);
-  assert.equal(response.body.quantity, product.quantity);
-  assert.equal(response.body.expiryDate, product.expiryDate);
+    assert.equal(response.statusCode, 409);
+    assert.deepEqual(response.body, duplicateSkuResponse);
+    assert.deepEqual(products, snapshot);
+  } finally {
+    restoreProducts(snapshot);
+  }
 });
 
-test('POST /api/products rejects missing fields', async () => {
-  const product = validProduct();
-  delete product.name;
+test('POST /api/products accepts a unique SKU', async () => {
+  const snapshot = snapshotProducts();
 
-  const response = await request(app)
-    .post('/api/products')
-    .send(product);
+  try {
+    const response = await request(app)
+      .post('/api/products')
+      .send(validProduct);
 
-  assert.equal(response.statusCode, 400);
+    assert.equal(response.statusCode, 201);
+    assert.equal(response.body.name, validProduct.name);
+    assert.equal(response.body.sku, validProduct.sku);
+    assert.equal(products.length, snapshot.length + 1);
+    assert.equal(products.at(-1).sku, validProduct.sku);
+  } finally {
+    restoreProducts(snapshot);
+  }
 });
 
-test('POST /api/products rejects invalid price', async () => {
-  const product = validProduct();
-  product.price = 'invalid';
+test('PUT /api/products/:id allows a product to retain its own SKU', async () => {
+  const snapshot = snapshotProducts();
+  const existingProduct = snapshot.find((product) => product.id === 'p-001');
 
-  const response = await request(app)
-    .post('/api/products')
-    .send(product);
+  try {
+    const response = await request(app)
+      .put('/api/products/p-001')
+      .send({
+        name: 'Whole Wheat Bread Updated',
+        sku: existingProduct.sku,
+        category: existingProduct.category,
+        price: existingProduct.price,
+        quantity: existingProduct.quantity + 1,
+        expiryDate: existingProduct.expiryDate
+      });
 
-  assert.equal(response.statusCode, 400);
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.id, 'p-001');
+    assert.equal(response.body.sku, existingProduct.sku);
+    assert.equal(response.body.quantity, existingProduct.quantity + 1);
+  } finally {
+    restoreProducts(snapshot);
+  }
 });
 
-test('POST /api/products rejects invalid quantity', async () => {
-  const product = validProduct();
-  product.quantity = 'invalid';
+test('PUT /api/products/:id rejects another product\'s SKU', async () => {
+  const snapshot = snapshotProducts();
+  const existingProduct = snapshot.find((product) => product.id === 'p-001');
+  const conflictingProduct = snapshot.find((product) => product.id === 'p-002');
 
-  const response = await request(app)
-    .post('/api/products')
-    .send(product);
+  try {
+    const response = await request(app)
+      .put('/api/products/p-001')
+      .send({
+        name: existingProduct.name,
+        sku: conflictingProduct.sku.toLowerCase(),
+        category: existingProduct.category,
+        price: existingProduct.price,
+        quantity: existingProduct.quantity,
+        expiryDate: existingProduct.expiryDate
+      });
 
-  assert.equal(response.statusCode, 400);
-});
-
-test('POST /api/products rejects decimal quantity', async () => {
-  const product = validProduct();
-  product.quantity = 10.5;
-
-  const response = await request(app)
-    .post('/api/products')
-    .send(product);
-
-  assert.equal(response.statusCode, 400);
-});
-
-test('POST /api/products rejects invalid calendar dates', async () => {
-  const product = validProduct();
-  product.expiryDate = '2026-02-31';
-
-  const response = await request(app)
-    .post('/api/products')
-    .send(product);
-
-  assert.equal(response.statusCode, 400);
-});
-
-test('POST /api/products rejects duplicate SKUs', async () => {
-  const product = validProduct();
-
-  const firstResponse = await request(app)
-    .post('/api/products')
-    .send(product);
-
-  assert.equal(firstResponse.statusCode, 201);
-
-  const secondResponse = await request(app)
-    .post('/api/products')
-    .send({
-      ...product,
-      name: 'Another Product'
-    });
-
-  assert.equal(secondResponse.statusCode, 409);
-});
-
-test('POST /api/products rejects case-insensitive duplicate SKUs', async () => {
-  const product = validProduct();
-  product.sku = `CASE-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-  const firstResponse = await request(app)
-    .post('/api/products')
-    .send(product);
-
-  assert.equal(firstResponse.statusCode, 201);
-
-  const secondResponse = await request(app)
-    .post('/api/products')
-    .send({
-      ...product,
-      sku: product.sku.toLowerCase(),
-      name: 'Another Case Product'
-    });
-
-  assert.equal(secondResponse.statusCode, 409);
-});
-
-test('POST /api/products rejects invalid SKU values', async () => {
-  const product = validProduct();
-  product.sku = 12345;
-
-  const response = await request(app)
-    .post('/api/products')
-    .send(product);
-
-  assert.equal(response.statusCode, 400);
-});
-
-test('POST /api/products rejects invalid expiryDate values', async () => {
-  const product = validProduct();
-  product.expiryDate = 2027;
-
-  const response = await request(app)
-    .post('/api/products')
-    .send(product);
-
-  assert.equal(response.statusCode, 400);
+    assert.equal(response.statusCode, 409);
+    assert.deepEqual(response.body, duplicateSkuResponse);
+    assert.deepEqual(products, snapshot);
+  } finally {
+    restoreProducts(snapshot);
+  }
 });

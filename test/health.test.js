@@ -12,3 +12,12 @@ test('GET /health returns the service status', async () => {
     service: 'retail-inventory-expiry-management-api'
   });
 });
+
+test('GET /unknown-route returns 404', async () => {
+  const response = await request(app).get('/unknown-route');
+
+  assert.equal(response.statusCode, 404);
+  assert.deepEqual(response.body, {
+    error: 'Route not found'
+  });
+});
