@@ -35,12 +35,15 @@ All product responses use JSON. Product fields are:
 | `quantity` | integer | Required, must be greater than or equal to 0 |
 | `expiryDate` | `YYYY-MM-DD` string | Required, valid calendar date |
 
-Planned endpoints:
+Available endpoints:
 
 - `POST /api/products` creates a product and returns `201`.
 - `GET /api/products` returns all products. Supported filters: `category` and `search`.
 - `PUT /api/products/:id` updates a product and returns `200`.
 - `DELETE /api/products/:id` deletes a product and returns `204`.
+
+Planned endpoints:
+
 - `GET /api/products/expiring-soon?days=7` returns products expiring within the next number of days.
 - `GET /api/products/low-stock?threshold=10` returns products at or below the threshold.
 

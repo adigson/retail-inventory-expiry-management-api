@@ -82,6 +82,25 @@ function ensureProductExists(req, res, next) {
   return next();
 }
 
+router.get('/', (req, res) => {
+  const category = typeof req.query.category === 'string'
+    ? req.query.category.trim().toLowerCase()
+    : '';
+  const search = typeof req.query.search === 'string'
+    ? req.query.search.trim().toLowerCase()
+    : '';
+
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory = !category || product.category.toLowerCase() === category;
+    const searchableText = `${product.name} ${product.sku} ${product.category}`.toLowerCase();
+    const matchesSearch = !search || searchableText.includes(search);
+
+    return matchesCategory && matchesSearch;
+  });
+
+  return res.status(200).json(filteredProducts);
+});
+
 router.post('/', validateProductPayload, validateUniqueSkuOnCreate, (req, res) => {
   const product = {
     id: `p-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -117,5 +136,12 @@ router.put(
     return res.status(200).json(product);
   }
 );
+
+router.delete('/:id', ensureProductExists, (req, res) => {
+  const productIndex = products.findIndex((item) => item.id === req.params.id);
+  products.splice(productIndex, 1);
+
+  return res.status(204).send();
+});
 
 module.exports = router;
