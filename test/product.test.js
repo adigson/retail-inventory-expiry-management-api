@@ -203,6 +203,27 @@ test('GET /api/products/expiring-soon accepts a custom window and zero days', as
   }
 });
 
+test('GET /api/products/expiring-soon returns an empty list when no products match', async () => {
+  const snapshot = snapshotProducts();
+  const expiryFixtures = [
+    { id: 'already-expired', expiryDate: dateFromToday(-1) },
+    { id: 'expires-tomorrow', expiryDate: dateFromToday(1) }
+  ];
+
+  try {
+    products.splice(0, products.length, ...expiryFixtures);
+
+    const response = await request(app)
+      .get('/api/products/expiring-soon')
+      .query({ days: 0 });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body, []);
+  } finally {
+    restoreProducts(snapshot);
+  }
+});
+
 test('GET /api/products/expiring-soon rejects invalid or repeated days values', async () => {
   for (const days of ['-1', '1.5', 'abc', '', '9007199254740992']) {
     const response = await request(app)
