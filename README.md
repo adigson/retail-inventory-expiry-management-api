@@ -35,16 +35,16 @@ All product responses use JSON. Product fields are:
 | `quantity` | integer | Required, must be greater than or equal to 0 |
 | `expiryDate` | `YYYY-MM-DD` string | Required, valid calendar date |
 
-Planned endpoints:
+Available endpoints:
 
 - `POST /api/products` creates a product and returns `201`.
 - `GET /api/products` returns all products. Supported filters: `category` and `search`.
+- `GET /api/products/low-stock?threshold=10` returns products whose quantity is at or below the threshold. The default threshold is `10`; threshold must be a non-negative integer.
+- `GET /api/products/expiring-soon?days=7` returns products expiring from the current UTC calendar date through the specified number of days ahead, inclusive. The default is `7`; expired products are excluded and `days` must be a non-negative integer.
 - `PUT /api/products/:id` updates a product and returns `200`.
 - `DELETE /api/products/:id` deletes a product and returns `204`.
-- `GET /api/products/expiring-soon?days=7` returns products expiring within the next number of days.
-- `GET /api/products/low-stock?threshold=10` returns products at or below the threshold.
 
-Recommended error shape:
+Errors use JSON responses with a consistent shape. Validation errors return `400`, duplicate SKUs return `409`, missing products/routes return `404`, malformed JSON returns `400`, oversized request bodies return `413`, and unexpected server errors return `500`.
 
 ```json
 {
@@ -52,6 +52,8 @@ Recommended error shape:
   "details": []
 }
 ```
+
+Unexpected errors are logged by the server and return a generic message without exposing internal details.
 
 ## Contribution workflow
 
