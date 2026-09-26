@@ -55,6 +55,12 @@ Errors use JSON responses with a consistent shape. Validation errors return `400
 
 Unexpected errors are logged by the server and return a generic message without exposing internal details.
 
+## Postman collection
+
+Import [`postman/retail-inventory-expiry-management.postman_collection.json`](./postman/retail-inventory-expiry-management.postman_collection.json) into Postman. The collection uses `http://localhost:3000` as its `baseUrl` by default; update the collection variable if the API is running on another port.
+
+Run the requests in order to exercise the create, update, and delete flow. The create request generates a unique SKU and stores the returned product ID for the following update and delete requests. The API uses in-memory sample data, so changes do not persist after the server restarts.
+
 ## Contribution workflow
 
 1. Create a branch from `main`: `feature/<short-task-name>`.

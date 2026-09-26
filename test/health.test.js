@@ -18,6 +18,7 @@ test('GET /unknown-route returns 404', async () => {
 
   assert.equal(response.statusCode, 404);
   assert.deepEqual(response.body, {
-    error: 'Route not found'
+    error: 'Route not found',
+    details: []
   });
 });
