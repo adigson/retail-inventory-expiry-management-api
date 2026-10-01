@@ -37,6 +37,16 @@ Before requesting review, confirm that:
 - The implementation does not break existing tests.
 - The GitHub Actions check passes.
 
+## Documentation checklist
+
+Every feature pull request should also confirm that the relevant user-facing and technical documentation has been checked for accuracy. At minimum:
+
+- API behavior matches the documented contract.
+- Request and response examples are still valid.
+- Validation rules reflect current code behavior.
+- Known limitations are clearly described.
+- Any architecture or workflow changes are reflected in the project docs.
+
 ## Shared decisions
 
 - IDs are server-generated strings.

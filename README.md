@@ -21,6 +21,179 @@ The API runs on `http://localhost:3000` by default. Verify the shared baseline w
 curl http://localhost:3000/health
 ```
 
+## Local verification checklist
+
+Use the following quick checks before considering the API ready for review:
+
+1. Install dependencies and start the service.
+2. Confirm health is available: `GET /health` should return `200 OK` and the service name.
+3. Create a product via `POST /api/products` using a valid payload.
+4. Confirm the new product appears in `GET /api/products`.
+5. Exercise filter queries: category, search, low-stock, and expiring-soon.
+6. Validate failure paths: invalid payloads, duplicate SKUs, unknown IDs, and malformed JSON.
+7. Run the automated tests: `npm test`.
+
+## Request validation rules
+
+All product requests share the same field validation contract:
+
+- `name`: required, non-empty string.
+- `sku`: required, unique, case-insensitive comparison.
+- `category`: required, non-empty string.
+- `price`: required, numeric value greater than or equal to `0`.
+- `quantity`: required, integer value greater than or equal to `0`.
+- `expiryDate`: required, valid `YYYY-MM-DD` calendar date in the future or present when creating a product; invalid dates return `400`.
+
+Additional API-specific rules:
+
+- `GET /api/products` supports optional `category` and `search` query filters.
+- `GET /api/products/low-stock` accepts an optional `threshold` query parameter; default is `10` and it must be a non-negative integer.
+- `GET /api/products/expiring-soon` accepts an optional `days` query parameter; default is `7` and it must be a non-negative integer.
+- Duplicate SKUs are rejected with `409 Conflict` even when their casing differs.
+- Unknown product IDs return `404 Not Found`.
+
+## Example requests and responses
+
+### Create a valid product
+
+Request:
+
+```http
+POST /api/products
+Content-Type: application/json
+
+{
+  "name": "Milk",
+  "sku": "MILK-001",
+  "category": "Dairy",
+  "price": 2.75,
+  "quantity": 18,
+  "expiryDate": "2026-10-30"
+}
+```
+
+Successful response:
+
+```json
+{
+  "id": "d0ff2d1e-3451-4e7e-8ebb-a60770eb6789",
+  "name": "Milk",
+  "sku": "MILK-001",
+  "category": "Dairy",
+  "price": 2.75,
+  "quantity": 18,
+  "expiryDate": "2026-10-30"
+}
+```
+
+### Duplicate SKU error
+
+Request:
+
+```http
+POST /api/products
+Content-Type: application/json
+
+{
+  "name": "Milk Deluxe",
+  "sku": "milk-001",
+  "category": "Dairy",
+  "price": 3.25,
+  "quantity": 12,
+  "expiryDate": "2026-11-05"
+}
+```
+
+Response:
+
+```json
+{
+  "error": "SKU already exists",
+  "details": []
+}
+```
+
+### Search and filter response
+
+Request:
+
+```http
+GET /api/products?category=dairy&search=milk
+```
+
+Response:
+
+```json
+[
+  {
+    "id": "d0ff2d1e-3451-4e7e-8ebb-a60770eb6789",
+    "name": "Milk",
+    "sku": "MILK-001",
+    "category": "Dairy",
+    "price": 2.75,
+    "quantity": 18,
+    "expiryDate": "2026-10-30"
+  }
+]
+```
+
+## Troubleshooting
+
+### Port already in use
+
+If `localhost:3000` is already occupied, update the `PORT` value in `.env` or start the service with a different environment variable before running the API.
+
+### Health route fails
+
+Check that the app started successfully and that dependencies are installed:
+
+```bash
+npm install
+npm start
+```
+
+Then confirm:
+
+```bash
+curl http://localhost:3000/health
+```
+
+### Request validation errors
+
+Validation errors usually mean one of the following:
+
+- required field omitted
+- numeric value is negative or not numeric
+- quantity is not an integer
+- date is malformed or invalid
+- duplicate SKU exists
+
+### Tests fail after a change
+
+Run the project test suite to identify exactly what behavior regressed:
+
+```bash
+npm test
+```
+
+## Current limitations and next steps
+
+This Phase 1 project intentionally focuses on a lightweight, in-memory demonstration API. Current limitations include:
+
+- data is not persisted across restarts
+- there is no authentication or authorization layer
+- there is no database or external storage
+- there is no web UI or dashboard
+- there is no pagination for large collections
+
+Planned next steps for a broader production-ready version include:
+
+- persist product data in a relational or document database
+- add user and role management
+- add audit logs and API security controls
+- add pagination, sorting, and bulk operations
+- provide dashboards for stock and expiry risk monitoring
+
 ## Endpoint Reference
 
 Base URL: `http://localhost:3000`
