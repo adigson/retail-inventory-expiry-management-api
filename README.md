@@ -2,6 +2,8 @@
 
 Phase 1 REST API for managing retail products, expiry alerts, and low-stock alerts.
 
+**Case study:** [Read about the problem, design decisions, current scope, evidence, and next steps](./docs/case-study.md).
+
 ## Prerequisites
 
 - Node.js 20 or newer
@@ -42,7 +44,7 @@ All product requests share the same field validation contract:
 - `category`: required, non-empty string.
 - `price`: required, numeric value greater than or equal to `0`.
 - `quantity`: required, integer value greater than or equal to `0`.
-- `expiryDate`: required, valid `YYYY-MM-DD` calendar date in the future or present when creating a product; invalid dates return `400`.
+- `expiryDate`: required, valid `YYYY-MM-DD` calendar date; invalid dates return `400`.
 
 Additional API-specific rules:
 
@@ -287,6 +289,7 @@ Run the requests in order to exercise the create, update, and delete flow. The c
 
 ## Project documents
 
+- [Case study](./docs/case-study.md)
 - [Problem statement](./docs/problem-statement.md)
 - [Architecture](./docs/architecture.md)
 - [Group 5c demo slides](./submission/group-5c-retail-inventory-expiry-management-demo.pptx)
