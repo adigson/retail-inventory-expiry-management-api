@@ -1,11 +1,4 @@
 const express = require('express');
-const products = require('../data/productStore');
-const {
-  validateUniqueSkuOnCreate,
-  validateUniqueSkuOnUpdate
-} = require('../middleware/validateUniqueSku');
-
-const router = express.Router();
 
 const requiredFields = [
   'name',
@@ -20,6 +13,12 @@ function validationError(details) {
   return {
     error: 'Validation failed',
     details
+  };
+}
+
+function asyncRoute(handler) {
+  return (req, res, next) => {
+    Promise.resolve(handler(req, res, next)).catch(next);
   };
 }
 
@@ -69,7 +68,9 @@ function validateProductPayload(req, res, next) {
     details.push({ field: 'category', message: 'category must be a non-empty string.' });
   }
 
-  if (typeof req.body?.price !== 'number' || req.body.price < 0) {
+  if (typeof req.body?.price !== 'number'
+    || !Number.isFinite(req.body.price)
+    || req.body.price < 0) {
     details.push({ field: 'price', message: 'price must be a non-negative number.' });
   }
 
@@ -91,108 +92,78 @@ function validateProductPayload(req, res, next) {
   return next();
 }
 
-function ensureProductExists(req, res, next) {
-  const product = products.find((item) => item.id === req.params.id);
-
-  if (!product) {
-    return res.status(404).json({
-      error: 'Product not found',
-      details: [{ field: 'id', message: `No product exists with id ${req.params.id}.` }]
-    });
-  }
-
-  return next();
+function notFoundProductResponse(id) {
+  return {
+    error: 'Product not found',
+    details: [{ field: 'id', message: `No product exists with id ${id}.` }]
+  };
 }
 
-router.get('/low-stock', (req, res) => {
-  const rawThreshold = req.query.threshold === undefined
-    ? '10'
-    : req.query.threshold;
-  const thresholdIsValid = typeof rawThreshold === 'string' && /^\d+$/.test(rawThreshold);
-  const threshold = thresholdIsValid ? Number(rawThreshold) : NaN;
+function createProductRoutes(repository) {
+  const router = express.Router();
 
-  if (!Number.isSafeInteger(threshold)) {
-    return res.status(400).json(validationError([
-      {
-        field: 'threshold',
-        message: 'threshold must be a non-negative integer.'
-      }
-    ]));
-  }
+  const ensureProductExists = asyncRoute(async (req, res, next) => {
+    const product = await repository.findById(req.params.id);
 
-  const lowStockProducts = products.filter((product) => product.quantity <= threshold);
-  return res.status(200).json(lowStockProducts);
-});
+    if (!product) {
+      return res.status(404).json(notFoundProductResponse(req.params.id));
+    }
 
-router.get('/expiring-soon', (req, res) => {
-  const rawDays = req.query.days === undefined ? '7' : req.query.days;
-  const daysIsValid = typeof rawDays === 'string' && /^\d+$/.test(rawDays);
-  const days = daysIsValid ? Number(rawDays) : NaN;
-
-  if (!Number.isSafeInteger(days)) {
-    return res.status(400).json(validationError([
-      {
-        field: 'days',
-        message: 'days must be a non-negative integer.'
-      }
-    ]));
-  }
-
-  const today = new Date().toISOString().slice(0, 10);
-  const todayDayNumber = Date.parse(`${today}T00:00:00.000Z`) / 86400000;
-  const lastIncludedDayNumber = todayDayNumber + days;
-
-  const expiringProducts = products.filter((product) => {
-    const expiryDayNumber = Date.parse(`${product.expiryDate}T00:00:00.000Z`) / 86400000;
-    return expiryDayNumber >= todayDayNumber && expiryDayNumber <= lastIncludedDayNumber;
+    return next();
   });
 
-  return res.status(200).json(expiringProducts);
-});
+  router.get('/low-stock', asyncRoute(async (req, res) => {
+    const rawThreshold = req.query.threshold === undefined
+      ? '10'
+      : req.query.threshold;
+    const thresholdIsValid = typeof rawThreshold === 'string' && /^\d+$/.test(rawThreshold);
+    const threshold = thresholdIsValid ? Number(rawThreshold) : NaN;
 
-router.get('/', (req, res) => {
-  const category = typeof req.query.category === 'string'
-    ? req.query.category.trim().toLowerCase()
-    : '';
-  const search = typeof req.query.search === 'string'
-    ? req.query.search.trim().toLowerCase()
-    : '';
+    if (!Number.isSafeInteger(threshold)) {
+      return res.status(400).json(validationError([
+        {
+          field: 'threshold',
+          message: 'threshold must be a non-negative integer.'
+        }
+      ]));
+    }
 
-  const filteredProducts = products.filter((product) => {
-    const matchesCategory = !category || product.category.toLowerCase() === category;
-    const searchableText = `${product.name} ${product.sku} ${product.category}`.toLowerCase();
-    const matchesSearch = !search || searchableText.includes(search);
+    const lowStockProducts = await repository.listLowStock(threshold);
+    return res.status(200).json(lowStockProducts);
+  }));
 
-    return matchesCategory && matchesSearch;
-  });
+  router.get('/expiring-soon', asyncRoute(async (req, res) => {
+    const rawDays = req.query.days === undefined ? '7' : req.query.days;
+    const daysIsValid = typeof rawDays === 'string' && /^\d+$/.test(rawDays);
+    const days = daysIsValid ? Number(rawDays) : NaN;
 
-  return res.status(200).json(filteredProducts);
-});
+    if (!Number.isSafeInteger(days)) {
+      return res.status(400).json(validationError([
+        {
+          field: 'days',
+          message: 'days must be a non-negative integer.'
+        }
+      ]));
+    }
 
-router.post('/', validateProductPayload, validateUniqueSkuOnCreate, (req, res) => {
-  const product = {
-    id: `p-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    name: req.body.name,
-    sku: req.body.sku,
-    category: req.body.category,
-    price: req.body.price,
-    quantity: req.body.quantity,
-    expiryDate: req.body.expiryDate
-  };
+    const expiringProducts = await repository.listExpiringSoon(days);
+    return res.status(200).json(expiringProducts);
+  }));
 
-  products.push(product);
-  return res.status(201).json(product);
-});
+  router.get('/', asyncRoute(async (req, res) => {
+    const category = typeof req.query.category === 'string'
+      ? req.query.category.trim().toLowerCase()
+      : '';
+    const search = typeof req.query.search === 'string'
+      ? req.query.search.trim().toLowerCase()
+      : '';
 
-router.put(
-  '/:id',
-  ensureProductExists,
-  validateProductPayload,
-  validateUniqueSkuOnUpdate,
-  (req, res) => {
-    const product = products.find((item) => item.id === req.params.id);
+    const filteredProducts = await repository.list({ category, search });
+    return res.status(200).json(filteredProducts);
+  }));
 
-    Object.assign(product, {
+  router.post('/', validateProductPayload, asyncRoute(async (req, res) => {
+    const product = await repository.create({
       name: req.body.name,
       sku: req.body.sku,
       category: req.body.category,
@@ -201,15 +172,36 @@ router.put(
       expiryDate: req.body.expiryDate
     });
 
+    return res.status(201).json(product);
+  }));
+
+  router.put('/:id', ensureProductExists, validateProductPayload, asyncRoute(async (req, res) => {
+    const product = await repository.updateById(req.params.id, {
+      name: req.body.name,
+      sku: req.body.sku,
+      category: req.body.category,
+      price: req.body.price,
+      quantity: req.body.quantity,
+      expiryDate: req.body.expiryDate
+    });
+
+    if (!product) {
+      return res.status(404).json(notFoundProductResponse(req.params.id));
+    }
+
     return res.status(200).json(product);
-  }
-);
+  }));
 
-router.delete('/:id', ensureProductExists, (req, res) => {
-  const productIndex = products.findIndex((item) => item.id === req.params.id);
-  products.splice(productIndex, 1);
+  router.delete('/:id', asyncRoute(async (req, res) => {
+    const deleted = await repository.deleteById(req.params.id);
+    if (!deleted) {
+      return res.status(404).json(notFoundProductResponse(req.params.id));
+    }
 
-  return res.status(204).send();
-});
+    return res.status(204).send();
+  }));
 
-module.exports = router;
+  return router;
+}
+
+module.exports = createProductRoutes;

@@ -7,11 +7,13 @@ flowchart LR
     Client[Postman or API client] --> Express[Express application]
     Express --> Middleware[CORS and JSON middleware]
     Middleware --> Routes[Health and product routes]
-    Routes --> Validation[Product and SKU validation]
-    Validation --> Store[In-memory product store]
+    Routes --> Validation[Product validation]
+    Validation --> Repository[PostgreSQL repository]
+    Repository --> Database[(PostgreSQL)]
     Routes --> Errors[404 and error handling]
     Errors --> Client
-    Store --> Routes
+    Database --> Repository
+    Repository --> Routes
     Routes --> Client
 ```
 
@@ -25,13 +27,13 @@ The server starts in `server.js` and loads the Express app from `src/app.js`. It
 
 Routes are defined in the `src/routes` and related modules. They handle HTTP methods, validate request parameters, call the service logic, and return responses in the contract expected by the client.
 
-### Validation layer
+### Validation and database constraints
 
-Validation checks ensure that incoming data meets the documented constraints before any update occurs. This includes field presence, type checks, numeric bounds, date validity, and duplicate SKU enforcement.
+Request validation checks field presence, type checks, numeric bounds, and date validity. PostgreSQL enforces non-empty values, non-negative price and quantity, and case-insensitive SKU uniqueness. The unique index is required to protect concurrent writes.
 
 ### Data layer
 
-The product store is intentionally in-memory. It is lightweight and fast for a demo, but it is not durable. The data layer exposes operations for listing, creating, updating, deleting, and querying products.
+The PostgreSQL repository exposes operations for listing, creating, updating, deleting, and querying products. The server uses a pooled connection string; migration commands use the direct connection string.
 
 ### Error handling
 
@@ -45,18 +47,19 @@ A typical request follows this path:
 2. Middleware processes CORS and JSON parsing.
 3. The matching route handler receives the request.
 4. Validation checks run for required fields and business rules.
-5. The store performs the requested operation.
+5. The repository executes a parameterized query against PostgreSQL.
 6. The route returns an HTTP status code and JSON payload.
 7. Any exception is caught by the global error handler and returned as a normalized JSON error.
 
 ## Design decisions
 
 - Single-process service: suitable for demo and classroom use.
-- In-memory data: keeps setup simple and avoids database dependency.
+- PostgreSQL repository: keeps persistence concerns out of route handlers.
+- Database unique index: guarantees SKU uniqueness even when requests arrive concurrently.
 - Centralized validation: consistent rules across create and update flows.
 - Shared error responses: predictable API behavior for clients and tests.
 - Minimal dependencies: easier onboarding and simpler maintenance.
 
 ## Trade-offs
 
-The current design is intentionally limited to match the Phase 1 goal. It does not include persistence, user management, or multi-instance coordination. This keeps the implementation focused on the core retail inventory workflow and the learning objectives of the project.
+The current design is intentionally limited to match the learning/demo goal. It does not include user management, authorization, or deployment hardening.

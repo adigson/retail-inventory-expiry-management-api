@@ -1,7 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
-const app = require('../src/app');
+const createApp = require('../src/app');
+const { createMemoryProductRepository } = require('../test-support/memoryProductRepository');
+const app = createApp(createMemoryProductRepository([]));
 
 test('GET /health returns the service status', async () => {
   const response = await request(app).get('/health');

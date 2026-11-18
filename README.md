@@ -14,6 +14,7 @@ Phase 1 REST API for managing retail products, expiry alerts, and low-stock aler
 ```bash
 npm install
 copy .env.example .env
+npm run db:migrate
 npm run dev
 ```
 
@@ -23,17 +24,38 @@ The API runs on `http://localhost:3000` by default. Verify the shared baseline w
 curl http://localhost:3000/health
 ```
 
+## PostgreSQL setup
+
+The API stores products in PostgreSQL. The migration creates the `products` table, validates database-level field constraints, and enforces case-insensitive SKU uniqueness with a unique index on `LOWER(sku)`.
+
+1. Copy `.env.example` to `.env`. Keep `.env` local; it is ignored by Git.
+2. Set `DATABASE_URL` to the pooled connection string for app queries.
+3. Set `DATABASE_URL_UNPOOLED` to the direct connection string for migrations.
+4. Run `npm run db:migrate` to apply migrations to the selected development branch.
+
+The migration command uses the direct URL intentionally. Do not use the portfolio database or a production branch for development.
+
+For the concurrency integration test, create a separate Neon test branch, set `TEST_DATABASE_URL` to its direct connection string, then run:
+
+```bash
+npm run db:migrate:test
+npm test
+```
+
+The test checks that simultaneous requests with case-insensitive duplicate SKUs produce one success and one `409 Conflict`. It refuses to use the same database as `DATABASE_URL`.
+
 ## Local verification checklist
 
 Use the following quick checks before considering the API ready for review:
 
-1. Install dependencies and start the service.
-2. Confirm health is available: `GET /health` should return `200 OK` and the service name.
-3. Create a product via `POST /api/products` using a valid payload.
-4. Confirm the new product appears in `GET /api/products`.
-5. Exercise filter queries: category, search, low-stock, and expiring-soon.
-6. Validate failure paths: invalid payloads, duplicate SKUs, unknown IDs, and malformed JSON.
-7. Run the automated tests: `npm test`.
+1. Install dependencies, configure `.env`, and run `npm run db:migrate`.
+2. Start the service.
+3. Confirm health is available: `GET /health` should return `200 OK` and the service name.
+4. Create a product via `POST /api/products` using a valid payload.
+5. Confirm the new product appears in `GET /api/products`.
+6. Exercise filter queries: category, search, low-stock, and expiring-soon.
+7. Validate failure paths: invalid payloads, duplicate SKUs, unknown IDs, and malformed JSON.
+8. Run the automated tests: `npm test`.
 
 ## Request validation rules
 
@@ -110,8 +132,13 @@ Response:
 
 ```json
 {
-  "error": "SKU already exists",
-  "details": []
+  "error": "Duplicate SKU",
+  "details": [
+    {
+      "field": "sku",
+      "message": "SKU must be unique; another product already uses this SKU."
+    }
+  ]
 }
 ```
 
@@ -180,17 +207,15 @@ npm test
 
 ## Current limitations and next steps
 
-This Phase 1 project intentionally focuses on a lightweight, in-memory demonstration API. Current limitations include:
+This learning/demo project is not deployed for retail use. Current limitations include:
 
-- data is not persisted across restarts
 - there is no authentication or authorization layer
-- there is no database or external storage
 - there is no web UI or dashboard
 - there is no pagination for large collections
 
 Planned next steps for a broader production-ready version include:
 
-- persist product data in a relational or document database
+- add a seed script with sample inventory data
 - add user and role management
 - add audit logs and API security controls
 - add pagination, sorting, and bulk operations

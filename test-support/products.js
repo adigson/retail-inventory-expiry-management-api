@@ -1,4 +1,4 @@
-const products = [
+module.exports = [
   {
     id: 'p-001',
     name: 'Whole Wheat Bread',
@@ -27,5 +27,3 @@ const products = [
     expiryDate: '2027-06-30'
   }
 ];
-
-module.exports = products;
