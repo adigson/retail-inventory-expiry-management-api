@@ -14,22 +14,23 @@ The Phase 1 API supports:
 - filtering products by category and searching by name, SKU, or category
 - finding products at or below a configurable stock threshold
 - finding products expiring within a configurable date window
-- validating product fields and rejecting duplicate SKUs without regard to case
+- persisting products in PostgreSQL and rejecting case-insensitive duplicate SKUs at the database level
+- returning `409 Conflict` when PostgreSQL reports a duplicate SKU
 - returning consistent JSON errors for invalid requests and missing resources
 
 The product record contains a name, SKU, category, price, quantity, and expiry date. The API uses Express and Node.js, and its behavior is covered by automated tests using Node's test runner and Supertest.
 
 ## Design and trade-offs
 
-The application separates the Express app, product routes, validation middleware, error handling, and product store. A small layered design keeps the request flow easy to follow and the routes testable without a database service.
+The application separates the Express app, product routes, validation middleware, error handling, and PostgreSQL repository. A memory-backed repository is used only by unit tests so the HTTP behavior can be tested without a database service.
 
-The current store is in memory. This avoids database setup for the initial learning scope, but product changes are lost when the process restarts. The service is single-process and has no authentication, authorization, or multi-user access controls, so it should not be presented as production-ready.
+Product data is stored in PostgreSQL and survives process restarts. A unique index on `LOWER(sku)` is the source of truth for SKU uniqueness; route-level pre-checks alone would not protect concurrent requests. The service has no authentication, authorization, or multi-user access controls, so it should not be presented as production-ready.
 
 See the [architecture notes](./architecture.md) for the request-flow diagram and module responsibilities, and the [problem statement](./problem-statement.md) for scope and acceptance criteria.
 
 ## Evidence
 
-- Run the automated suite with `npm test`. Tests cover the health route, product CRUD, filters, validation, duplicate SKUs, date-window behavior, and error responses.
+- Run the automated suite with `npm test`. Unit tests cover the health route, product CRUD, filters, validation, date-window behavior, and error responses. Set `TEST_DATABASE_URL` to a separate test branch to run the concurrent-SKU integration test against PostgreSQL.
 - Import the [Postman collection](../postman/retail-inventory-expiry-management.postman_collection.json) to exercise the API manually.
 - Review the [Postman screenshots](../submission/postman-screenshots/) for captured examples of the health check, product listing and filtering, low-stock query, and unknown-route response.
 
@@ -37,7 +38,7 @@ These are functional checks of the current demo; no load or performance benchmar
 
 ## Next steps
 
-1. Replace the in-memory store with PostgreSQL and migrations, then test persistence and data constraints.
+1. Add a seed script with sample retail items for low-stock and expiry demonstrations.
 2. Add authentication and role-based authorization for store staff and administrators.
 3. Add pagination and audit history, and document operational behavior and security controls.
 4. Deploy a usable demo only after the persistent version and its configuration are reliable.

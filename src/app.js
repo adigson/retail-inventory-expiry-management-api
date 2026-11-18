@@ -1,26 +1,34 @@
 const express = require('express');
 const cors = require('cors');
-const productRoutes = require('./routes/productRoutes');
+const createProductRoutes = require('./routes/productRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
-const app = express();
+function createApp(productRepository) {
+  if (!productRepository) {
+    throw new Error('A product repository is required to create the app.');
+  }
 
-app.use(cors());
-app.use(express.json());
+  const app = express();
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'retail-inventory-expiry-management-api' });
-});
+  app.use(cors());
+  app.use(express.json());
 
-app.use('/api/products', productRoutes);
-
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    details: []
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', service: 'retail-inventory-expiry-management-api' });
   });
-});
 
-app.use(errorHandler);
+  app.use('/api/products', createProductRoutes(productRepository));
 
-module.exports = app;
+  app.use((req, res) => {
+    res.status(404).json({
+      error: 'Route not found',
+      details: []
+    });
+  });
+
+  app.use(errorHandler);
+
+  return app;
+}
+
+module.exports = createApp;

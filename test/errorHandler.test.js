@@ -3,7 +3,9 @@ const assert = require('node:assert/strict');
 const express = require('express');
 const request = require('supertest');
 const errorHandler = require('../src/middleware/errorHandler');
-const app = require('../src/app');
+const createApp = require('../src/app');
+const { createMemoryProductRepository } = require('../test-support/memoryProductRepository');
+const app = createApp(createMemoryProductRepository([]));
 
 test('POST /api/products returns JSON for malformed request bodies', async () => {
   const response = await request(app)

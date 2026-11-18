@@ -17,6 +17,18 @@ function errorHandler(error, req, res, next) {
     });
   }
 
+  if (error.code === '23505' && error.constraint === 'products_sku_lower_unique_idx') {
+    return res.status(409).json({
+      error: 'Duplicate SKU',
+      details: [
+        {
+          field: 'sku',
+          message: 'SKU must be unique; another product already uses this SKU.'
+        }
+      ]
+    });
+  }
+
   console.error(error);
   return res.status(500).json({
     error: 'Internal server error',

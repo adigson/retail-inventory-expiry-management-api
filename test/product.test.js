@@ -1,8 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
-const app = require('../src/app');
-const products = require('../src/data/productStore');
+const createApp = require('../src/app');
+const products = require('../test-support/products');
+const { createMemoryProductRepository } = require('../test-support/memoryProductRepository');
+const app = createApp(createMemoryProductRepository(products));
 
 const duplicateSkuResponse = {
   error: 'Duplicate SKU',
